@@ -168,12 +168,16 @@ impl RenderState {
         }
     }
 
-    pub fn input(&mut self, _event: &WindowEvent) -> bool {
+    pub fn input(&mut self, event: &WindowEvent) -> bool {
         false
     }
 
     pub fn update(&mut self) {
-
+        self.queue.write_buffer(
+            self.camera.buffer.as_ref().unwrap(), 
+            0, 
+            bytemuck::cast_slice(&[CameraUniform::from(&self.camera)])
+        );
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {

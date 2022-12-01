@@ -11,7 +11,7 @@ pub struct Camera {
     pub fov_y: f32,
     pub z_near: f32,
     pub z_far: f32,
-    buffer: Option<wgpu::Buffer>,
+    pub buffer: Option<wgpu::Buffer>,
 }
 
 impl Default for Camera {

@@ -33,13 +33,13 @@ impl MainLoop {
         env_logger::init();
         self.prev_frame_start = Instant::now();
 
-        let mut state = RenderState::new(&self.window).await;
+        let mut render_state = RenderState::new(&self.window).await;
     
         self.event_loop.run(move |event, _, control_flow| match event {
             Event::WindowEvent {
                 ref event,
                 window_id,
-            } if window_id == self.window.id() => if !state.input(event) { // UPDATED!
+            } if window_id == self.window.id() => if !render_state.input(event) {
                 match event {
                     WindowEvent::CloseRequested
                     | WindowEvent::KeyboardInput {
@@ -53,11 +53,11 @@ impl MainLoop {
                     } => *control_flow = ControlFlow::Exit,
                     
                     WindowEvent::Resized(physical_size) => {
-                        state.resize(*physical_size);
+                        render_state.resize(*physical_size);
                     }
 
                     WindowEvent::ScaleFactorChanged { new_inner_size, .. } => {
-                        state.resize(**new_inner_size);
+                        render_state.resize(**new_inner_size);
                     }
 
                     _ => {}
@@ -65,11 +65,11 @@ impl MainLoop {
             },
 
             Event::RedrawRequested(window_id) if window_id == self.window.id() => {
-                state.update();
-                match state.render() {
+                render_state.update();
+                match render_state.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
-                    Err(wgpu::SurfaceError::Lost) => state.resize(state.size),
+                    Err(wgpu::SurfaceError::Lost) => render_state.resize(render_state.size),
                     // The system is out of memory, we should probably quit
                     Err(wgpu::SurfaceError::OutOfMemory) => *control_flow = ControlFlow::Exit,
                     // All other errors (Outdated, Timeout) should be resolved by the next frame
