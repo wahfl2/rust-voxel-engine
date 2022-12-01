@@ -1,7 +1,7 @@
 use std::{num::NonZeroU32};
 
 use nalgebra::{Vector3, Point3};
-use wgpu::{include_wgsl, util::DeviceExt, Extent3d};
+use wgpu::{include_wgsl, util::DeviceExt, Extent3d, BindGroupLayout};
 use winit::{window::Window, event::WindowEvent};
 
 use super::{util::{vertex::*, cube_model::CubeModel, texture::TextureArray}, camera::{Camera, CameraUniform}};
@@ -14,7 +14,6 @@ pub struct RenderState {
     pub size: winit::dpi::PhysicalSize<u32>,
     camera: Camera,
     camera_uniform: CameraUniform,
-    camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
@@ -73,14 +72,6 @@ impl RenderState {
             }
         );
 
-        // let index_buffer = device.create_buffer_init(
-        //     &wgpu::util::BufferInitDescriptor {
-        //         label: Some("Index Buffer"),
-        //         contents: bytemuck::cast_slice(CubeModel::INDICES),
-        //         usage: wgpu::BufferUsages::INDEX,
-        //     }
-        // );
-
         let mut texture_array = TextureArray::new(&device, Extent3d {
             width: 32,
             height: 32,
@@ -91,89 +82,17 @@ impl RenderState {
             texture_array.push_image(&queue, dyn_tex);
         }
 
-        let texture_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 0,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Texture {
-                            multisampled: false,
-                            view_dimension: wgpu::TextureViewDimension::D2Array,
-                            sample_type: wgpu::TextureSampleType::Float { filterable: true },
-                        },
-                        count: Some(NonZeroU32::new(1).unwrap()),
-                    },
-                    wgpu::BindGroupLayoutEntry {
-                        binding: 1,
-                        visibility: wgpu::ShaderStages::FRAGMENT,
-                        ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                        count: None,
-                    },
-                ],
-                label: Some("texture_bind_group_layout"),
-            });
+        let (texture_bind_group_layout, texture_bind_group) = 
+            texture_array.get_bind_group_and_layout(&device);
 
-        let bind_group = device.create_bind_group(
-            &wgpu::BindGroupDescriptor {
-                layout: &texture_bind_group_layout,
-                entries: &[
-                    wgpu::BindGroupEntry {
-                        binding: 0,
-                        resource: wgpu::BindingResource::TextureView(&texture_array.view),
-                    },
-                    wgpu::BindGroupEntry {
-                        binding: 1,
-                        resource: wgpu::BindingResource::Sampler(&texture_array.sampler),
-                    }
-                ],
-                label: Some("diffuse_bind_group"),
-            }
-        );
-
-        let camera = Camera {
-            origin: Point3::new(0.0, 5.0, 5.0),
-            target: Point3::new(0.0, 0.0, 0.0),
-            aspect: config.width as f32 / config.height as f32,
-            ..Default::default()
-        };
+        let mut camera = Camera::default();
+        camera.origin = Point3::new(0.0, 5.0, 5.0);
+        camera.target = Point3::new(0.0, 0.0, 0.0);
+        camera.aspect = config.width as f32 / config.height as f32;
 
         let camera_uniform = CameraUniform::from(&camera);
-
-        let camera_buffer = device.create_buffer_init(
-            &wgpu::util::BufferInitDescriptor {
-                label: Some("Camera Buffer"),
-                contents: bytemuck::cast_slice(&[camera_uniform]),
-                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-            }
-        );
-
-        let camera_bind_group_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[
-                wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }
-            ],
-            label: Some("camera_bind_group_layout"),
-        });
-
-        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &camera_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: camera_buffer.as_entire_binding(),
-                }
-            ],
-            label: Some("camera_bind_group"),
-        });         
+        let (camera_bind_group_layout, camera_bind_group) = 
+            camera.get_bind_group_and_layout(&device);
 
         let render_pipeline_layout = device.create_pipeline_layout(
             &wgpu::PipelineLayoutDescriptor {
@@ -208,7 +127,7 @@ impl RenderState {
             primitive: wgpu::PrimitiveState {
                 topology: wgpu::PrimitiveTopology::TriangleList,
                 strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
+                front_face: wgpu::FrontFace::Cw,
                 cull_mode: Some(wgpu::Face::Back),
                 polygon_mode: wgpu::PolygonMode::Fill,
                 unclipped_depth: false,
@@ -231,12 +150,11 @@ impl RenderState {
             size,
             camera,
             camera_uniform,
-            camera_buffer,
             camera_bind_group,
             render_pipeline,
             vertex_buffer,
             // index_buffer,
-            bind_group,
+            bind_group: texture_bind_group,
             num_indices: CubeModel::INDICES.len() as u32,
         }
     }

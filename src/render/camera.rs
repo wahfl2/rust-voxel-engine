@@ -1,4 +1,5 @@
 use nalgebra::{Point3, Vector3, Matrix4, Affine3, Isometry3, UnitQuaternion, Quaternion};
+use wgpu::{Device, util::DeviceExt};
 
 use super::util::math::perspective;
 
@@ -10,6 +11,7 @@ pub struct Camera {
     pub fov_y: f32,
     pub z_near: f32,
     pub z_far: f32,
+    buffer: Option<wgpu::Buffer>,
 }
 
 impl Default for Camera {
@@ -22,6 +24,7 @@ impl Default for Camera {
             fov_y: 45.0, 
             z_near: 0.01, 
             z_far: 10000.0,
+            buffer: None,
         }
     }
 }
@@ -31,6 +34,55 @@ impl Camera {
         let matr = Isometry3::look_at_rh(&self.origin, &self.target, &self.up).to_matrix();
         let proj = perspective(self.fov_y, self.aspect, self.z_near, self.z_far);
         proj * matr
+    }
+
+    pub fn create_buffer(&mut self, device: &Device) -> &wgpu::Buffer {
+        let buffer = device.create_buffer_init(
+            &wgpu::util::BufferInitDescriptor {
+                label: Some("Camera Buffer"),
+                contents: bytemuck::cast_slice(&[CameraUniform::from(&*self)]),
+                usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            }
+        );
+        self.buffer = Some(buffer);
+        &self.buffer.as_ref().unwrap()
+    }
+
+    pub fn get_bind_group_and_layout(&mut self, device: &Device) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
+        let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::VERTEX,
+                    ty: wgpu::BindingType::Buffer {
+                        ty: wgpu::BufferBindingType::Uniform,
+                        has_dynamic_offset: false,
+                        min_binding_size: None,
+                    },
+                    count: None,
+                }
+            ],
+            label: Some("camera_bind_group_layout"),
+        });
+
+        let camera_buffer = if let Some(buffer) = &self.buffer {
+            buffer
+        } else {
+            self.create_buffer(device)
+        };
+
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: camera_buffer.as_entire_binding(),
+                }
+            ],
+            label: Some("camera_bind_group"),
+        });
+
+        (layout, bind_group)
     }
 }
 

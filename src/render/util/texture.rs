@@ -91,4 +91,51 @@ impl TextureArray {
 
         self.push_image(queue, image);
     }
+
+    pub fn get_bind_group_layout(&self, device: &Device) -> wgpu::BindGroupLayout {
+        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
+                    binding: 0,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2Array,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                    },
+                    count: Some(NonZeroU32::new(1).unwrap()),
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+            ],
+            label: Some("texture_bind_group_layout"),
+        })
+    }
+
+    /// Creates a bind group for the texture and returns both the layout and the bind group itself.
+    pub fn get_bind_group_and_layout(&self, device: &Device) -> (wgpu::BindGroupLayout, wgpu::BindGroup) {
+        let layout = self.get_bind_group_layout(device);
+        let bind_group = device.create_bind_group(
+            &wgpu::BindGroupDescriptor {
+                layout: &layout,
+                entries: &[
+                    wgpu::BindGroupEntry {
+                        binding: 0,
+                        resource: wgpu::BindingResource::TextureView(&self.view),
+                    },
+                    wgpu::BindGroupEntry {
+                        binding: 1,
+                        resource: wgpu::BindingResource::Sampler(&self.sampler),
+                    }
+                ],
+                label: Some("texture_bind_group"),
+            }
+        );
+
+        (layout, bind_group)
+    }
 }
