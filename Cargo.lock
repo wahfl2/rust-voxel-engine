@@ -1486,6 +1486,7 @@ dependencies = [
  "nalgebra",
  "pollster",
  "rgb",
+ "rustc-hash",
  "wgpu",
  "winit",
 ]
