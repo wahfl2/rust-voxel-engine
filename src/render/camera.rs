@@ -3,9 +3,9 @@ use wgpu::{Device, util::DeviceExt};
 
 use super::util::math::perspective;
 
+#[derive(Debug)]
 pub struct Camera {
-    pub origin: Point3<f32>,
-    pub target: Point3<f32>,
+    pub transform: Isometry3<f32>,
     pub up: Vector3<f32>,
     pub aspect: f32,
     pub fov_y: f32,
@@ -17,8 +17,7 @@ pub struct Camera {
 impl Default for Camera {
     fn default() -> Self {
         Self {
-            origin: Point3::new(0.0, 0.0, -10.0), 
-            target: Point3::new(0.0, 0.0, 0.0), 
+            transform: Isometry3::identity(), 
             up: Vector3::new(0.0, 1.0, 0.0),
             aspect: 1.0,
             fov_y: 45.0, 
@@ -31,9 +30,8 @@ impl Default for Camera {
 
 impl Camera {
     pub fn calculate_projection_matrix(&self) -> Matrix4<f32> {
-        let matr = Isometry3::look_at_rh(&self.origin, &self.target, &self.up).to_matrix();
         let proj = perspective(self.fov_y, self.aspect, self.z_near, self.z_far);
-        proj * matr
+        proj * self.transform.to_matrix()
     }
 
     pub fn create_buffer(&mut self, device: &Device) -> &wgpu::Buffer {

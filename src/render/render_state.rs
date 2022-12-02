@@ -1,8 +1,10 @@
-use std::{num::NonZeroU32};
 
-use nalgebra::{Vector3, Point3};
-use wgpu::{include_wgsl, util::DeviceExt, Extent3d, BindGroupLayout};
+
+use nalgebra::{Point3, Vector3, Isometry3};
+use wgpu::{include_wgsl, util::DeviceExt, Extent3d};
 use winit::{window::Window, event::WindowEvent};
+
+use crate::{event::event_bus::EventBus, input::handler::Movement};
 
 use super::{util::{vertex::*, cube_model::CubeModel, texture::TextureArray}, camera::{Camera, CameraUniform}};
 
@@ -86,8 +88,7 @@ impl RenderState {
             texture_array.get_bind_group_and_layout(&device);
 
         let mut camera = Camera::default();
-        camera.origin = Point3::new(0.0, 5.0, 5.0);
-        camera.target = Point3::new(0.0, 0.0, 0.0);
+        camera.transform = Isometry3::translation(0.0, 5.0, 5.0);
         camera.aspect = config.width as f32 / config.height as f32;
 
         let camera_uniform = CameraUniform::from(&camera);
@@ -172,15 +173,41 @@ impl RenderState {
         false
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, bus: &mut EventBus) {
+        let mut sum = Vector3::zeros();
+        let look_vec = self.camera.transform.rotation * self.camera.up;
+        let right_vec = look_vec.cross(&self.camera.up);
+
+        for movement in bus.get_events_data::<Movement>() {
+            println!("recieved: {:?}", movement);
+            match movement {
+                Movement::Forward => {
+                    sum += look_vec;
+                },
+                Movement::Backward => {
+                    sum -= look_vec;
+                },
+                Movement::Left => {
+                    sum -= right_vec;
+                },
+                Movement::Right => {
+                    sum += right_vec;
+                },
+            }
+        }
+
+        self.camera.transform.append_translation_mut(&sum.into());
+
         self.queue.write_buffer(
             self.camera.buffer.as_ref().unwrap(), 
             0, 
             bytemuck::cast_slice(&[CameraUniform::from(&self.camera)])
         );
+
+        // println!("{:?}", self.camera);
     }
 
-    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self, bus: &mut EventBus) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 
