@@ -4,6 +4,7 @@ use nalgebra::Point3;
 pub mod main_loop;
 pub mod render;
 pub mod event;
+pub mod input;
 
 fn main() {
     let main_loop = MainLoop::new();

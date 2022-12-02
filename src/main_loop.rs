@@ -6,7 +6,7 @@ use winit::{
     window::{WindowBuilder, Window},
 };
 
-use crate::render::render_state::RenderState;
+use crate::{render::render_state::RenderState, event::event_bus::EventBus, input::handler::InputHandler};
 
 pub struct MainLoop {
     pub window: Window,
@@ -34,6 +34,8 @@ impl MainLoop {
         self.prev_frame_start = Instant::now();
 
         let mut render_state = RenderState::new(&self.window).await;
+        let mut event_bus = EventBus::new();
+        let mut input_handler = InputHandler::default();
     
         self.event_loop.run(move |event, _, control_flow| match event {
             Event::WindowEvent {
@@ -60,13 +62,15 @@ impl MainLoop {
                         render_state.resize(**new_inner_size);
                     }
 
-                    _ => {}
+                    _ => {
+                        input_handler.process_events(&mut event_bus, event);
+                    }
                 }
             },
 
             Event::RedrawRequested(window_id) if window_id == self.window.id() => {
-                render_state.update();
-                match render_state.render() {
+                render_state.update(&mut event_bus);
+                match render_state.render(&mut event_bus) {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
                     Err(wgpu::SurfaceError::Lost) => render_state.resize(render_state.size),
@@ -78,6 +82,7 @@ impl MainLoop {
             },
 
             Event::MainEventsCleared => {
+                
                 self.frame_times.push(Instant::now().duration_since(self.prev_frame_start).as_secs_f32());
                 if self.frame_times.len() >= 30 {
                     let mut sum = 0.0;
@@ -89,7 +94,7 @@ impl MainLoop {
                     println!("Avg. fps: {:.2}", self.fps);
                 }
                 self.prev_frame_start = Instant::now();
-
+                event_bus.clear_all();
                 self.window.request_redraw();
             }
             _ => {}
