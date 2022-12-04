@@ -1,6 +1,8 @@
 
 
-use nalgebra::{Isometry3, Translation3, UnitQuaternion, Vector3};
+use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
+
+use nalgebra::{Isometry3, Translation3, UnitQuaternion, Vector3, UnitDualQuaternion, Rotation3, UnitVector3};
 use wgpu::{include_wgsl, util::DeviceExt, Extent3d};
 use winit::{window::Window, event::WindowEvent};
 
@@ -86,10 +88,6 @@ impl RenderState {
             texture_array.get_bind_group_and_layout(&device);
 
         let mut camera = Camera::default();
-        camera.transform = Isometry3::from_parts(
-            Translation3::new(0.0, 0.0, -5.0),
-            UnitQuaternion::new(Vector3::new(1.0, 0.0, 0.0))
-        );
         camera.aspect = config.width as f32 / config.height as f32;
 
         let camera_uniform = CameraUniform::from(&camera);

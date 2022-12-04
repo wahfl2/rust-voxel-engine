@@ -1,13 +1,13 @@
 use std::time::Instant;
 
-use nalgebra::Vector3;
+use nalgebra::{Vector3, Rotation3, Transform3, Isometry3, Point3};
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop, EventLoopBuilder},
     window::{WindowBuilder, Window},
 };
 
-use crate::{render::render_state::RenderState, input::handler::{InputHandler, Movement}, event::events::Events};
+use crate::{render::{render_state::RenderState, camera::CameraController}, input::handler::{InputHandler, Movement}, event::events::Events, util::constants::DEG_TO_RAD};
 
 pub struct MainLoop {
     pub window: Window,
@@ -22,7 +22,9 @@ impl MainLoop {
         let event_loop = EventLoopBuilder::<Events>::with_user_event().build();
 
         MainLoop { 
-            window: WindowBuilder::new().build(&event_loop).unwrap(),
+            window: WindowBuilder::new()
+                .with_maximized(true)
+                .build(&event_loop).unwrap(),
             event_loop,
             prev_frame_start: Instant::now(),
             frame_times: Vec::with_capacity(30),
@@ -37,6 +39,7 @@ impl MainLoop {
         let mut render_state = RenderState::new(&self.window).await;
         let mut input_handler = InputHandler::default();
         let mut proxy = self.event_loop.create_proxy();
+        let mut camera_controller = CameraController::new(Point3::new(0.0, 0.0, -5.0), 1.0);
     
         self.event_loop.run(move |event, _, control_flow| match event {
             Event::WindowEvent {
@@ -69,11 +72,16 @@ impl MainLoop {
                 }
             },
 
+            Event::DeviceEvent { event, .. } => {
+                camera_controller.process_device_event(event);
+            }
+
             Event::UserEvent(event) => {
                 match event {
                     Events::Movement(dir) => {
+                        let move_speed = 0.1;
                         let mut sum = Vector3::zeros();
-                        let look_vec = render_state.camera.transform.rotation * render_state.camera.up;
+                        let look_vec = render_state.camera.transform.rotation.inverse() * Vector3::z();
                         let right_vec = look_vec.cross(&render_state.camera.up);
 
                         match dir {
@@ -91,7 +99,7 @@ impl MainLoop {
                             },
                         }
 
-                        render_state.camera.transform.append_translation_mut(&sum.into());
+                        camera_controller.position += sum * move_speed;
                     },
                     Events::ButtonInput(input) => {
                         
@@ -100,8 +108,10 @@ impl MainLoop {
             }
 
             Event::RedrawRequested(window_id) if window_id == self.window.id() => {
+                render_state.camera.transform = camera_controller.get_transform();
                 input_handler.process_input(&mut proxy);
                 render_state.update();
+
                 match render_state.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
