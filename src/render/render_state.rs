@@ -1,10 +1,8 @@
 
 
-use nalgebra::{Point3, Vector3, Isometry3};
+use nalgebra::{Isometry3, Translation3, UnitQuaternion, Vector3};
 use wgpu::{include_wgsl, util::DeviceExt, Extent3d};
 use winit::{window::Window, event::WindowEvent};
-
-use crate::{event::event_bus::EventBus, input::handler::Movement};
 
 use super::{util::{vertex::*, cube_model::CubeModel, texture::TextureArray}, camera::{Camera, CameraUniform}};
 
@@ -14,7 +12,7 @@ pub struct RenderState {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
-    camera: Camera,
+    pub camera: Camera,
     camera_uniform: CameraUniform,
     camera_bind_group: wgpu::BindGroup,
     render_pipeline: wgpu::RenderPipeline,
@@ -88,7 +86,10 @@ impl RenderState {
             texture_array.get_bind_group_and_layout(&device);
 
         let mut camera = Camera::default();
-        camera.transform = Isometry3::translation(0.0, 5.0, 5.0);
+        camera.transform = Isometry3::from_parts(
+            Translation3::new(0.0, 0.0, -5.0),
+            UnitQuaternion::new(Vector3::new(1.0, 0.0, 0.0))
+        );
         camera.aspect = config.width as f32 / config.height as f32;
 
         let camera_uniform = CameraUniform::from(&camera);
@@ -166,6 +167,7 @@ impl RenderState {
             self.config.width = new_size.width;
             self.config.height = new_size.height;
             self.surface.configure(&self.device, &self.config);
+            self.camera.aspect = self.config.width as f32 / self.config.height as f32
         }
     }
 
@@ -173,30 +175,30 @@ impl RenderState {
         false
     }
 
-    pub fn update(&mut self, bus: &mut EventBus) {
-        let mut sum = Vector3::zeros();
-        let look_vec = self.camera.transform.rotation * self.camera.up;
-        let right_vec = look_vec.cross(&self.camera.up);
+    pub fn update(&mut self) {
+        // let mut sum = Vector3::zeros();
+        // let look_vec = self.camera.transform.rotation * self.camera.up;
+        // let right_vec = look_vec.cross(&self.camera.up);
 
-        for movement in bus.get_events_data::<Movement>() {
-            println!("recieved: {:?}", movement);
-            match movement {
-                Movement::Forward => {
-                    sum += look_vec;
-                },
-                Movement::Backward => {
-                    sum -= look_vec;
-                },
-                Movement::Left => {
-                    sum -= right_vec;
-                },
-                Movement::Right => {
-                    sum += right_vec;
-                },
-            }
-        }
+        // for movement in bus.get_events_data::<Movement>() {
+        //     println!("recieved: {:?}", movement);
+        //     match movement {
+        //         Movement::Forward => {
+        //             sum += look_vec;
+        //         },
+        //         Movement::Backward => {
+        //             sum -= look_vec;
+        //         },
+        //         Movement::Left => {
+        //             sum -= right_vec;
+        //         },
+        //         Movement::Right => {
+        //             sum += right_vec;
+        //         },
+        //     }
+        // }
 
-        self.camera.transform.append_translation_mut(&sum.into());
+        // self.camera.transform.append_translation_mut(&sum.into());
 
         self.queue.write_buffer(
             self.camera.buffer.as_ref().unwrap(), 
@@ -207,7 +209,7 @@ impl RenderState {
         // println!("{:?}", self.camera);
     }
 
-    pub fn render(&mut self, bus: &mut EventBus) -> Result<(), wgpu::SurfaceError> {
+    pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
         let output = self.surface.get_current_texture()?;
         let view = output.texture.create_view(&wgpu::TextureViewDescriptor::default());
 

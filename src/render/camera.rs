@@ -1,4 +1,4 @@
-use nalgebra::{Point3, Vector3, Matrix4, Affine3, Isometry3, UnitQuaternion, Quaternion};
+use nalgebra::{Vector3, Matrix4, Isometry3};
 use wgpu::{Device, util::DeviceExt};
 
 use super::util::math::perspective;

@@ -1,7 +1,6 @@
 use std::{fs::File, io::Read};
 
 use image::DynamicImage;
-use nalgebra::{Point3, Point2};
 
 use super::vertex::Vertex;
 

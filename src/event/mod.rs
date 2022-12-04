@@ -1,2 +1,1 @@
-pub mod event_bus;
-pub mod event;
+pub mod events;

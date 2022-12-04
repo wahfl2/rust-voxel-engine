@@ -1,5 +1,4 @@
-use nalgebra::{Point3, Point2};
-use rgb::RGBA8;
+use nalgebra::Point3;
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]

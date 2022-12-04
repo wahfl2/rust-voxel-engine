@@ -1,16 +1,17 @@
-use std::{collections::VecDeque, time::Instant};
+use std::time::Instant;
 
+use nalgebra::Vector3;
 use winit::{
     event::*,
-    event_loop::{ControlFlow, EventLoop},
+    event_loop::{ControlFlow, EventLoop, EventLoopBuilder},
     window::{WindowBuilder, Window},
 };
 
-use crate::{render::render_state::RenderState, event::event_bus::EventBus, input::handler::InputHandler};
+use crate::{render::render_state::RenderState, input::handler::{InputHandler, Movement}, event::events::Events};
 
 pub struct MainLoop {
     pub window: Window,
-    event_loop: EventLoop<()>,
+    event_loop: EventLoop<Events>,
     prev_frame_start: Instant,
     frame_times: Vec<f32>,
     pub fps: f32,
@@ -18,7 +19,7 @@ pub struct MainLoop {
 
 impl MainLoop {
     pub fn new() -> Self {
-        let event_loop = EventLoop::new();
+        let event_loop = EventLoopBuilder::<Events>::with_user_event().build();
 
         MainLoop { 
             window: WindowBuilder::new().build(&event_loop).unwrap(),
@@ -34,8 +35,8 @@ impl MainLoop {
         self.prev_frame_start = Instant::now();
 
         let mut render_state = RenderState::new(&self.window).await;
-        let mut event_bus = EventBus::new();
         let mut input_handler = InputHandler::default();
+        let mut proxy = self.event_loop.create_proxy();
     
         self.event_loop.run(move |event, _, control_flow| match event {
             Event::WindowEvent {
@@ -63,14 +64,45 @@ impl MainLoop {
                     }
 
                     _ => {
-                        input_handler.process_events(&mut event_bus, event);
+                        input_handler.process_event(&mut proxy, event);
                     }
                 }
             },
 
+            Event::UserEvent(event) => {
+                match event {
+                    Events::Movement(dir) => {
+                        let mut sum = Vector3::zeros();
+                        let look_vec = render_state.camera.transform.rotation * render_state.camera.up;
+                        let right_vec = look_vec.cross(&render_state.camera.up);
+
+                        match dir {
+                            Movement::Forward => {
+                                sum += look_vec;
+                            },
+                            Movement::Backward => {
+                                sum -= look_vec;
+                            },
+                            Movement::Left => {
+                                sum -= right_vec;
+                            },
+                            Movement::Right => {
+                                sum += right_vec;
+                            },
+                        }
+
+                        render_state.camera.transform.append_translation_mut(&sum.into());
+                    },
+                    Events::ButtonInput(input) => {
+                        
+                    }
+                }
+            }
+
             Event::RedrawRequested(window_id) if window_id == self.window.id() => {
-                render_state.update(&mut event_bus);
-                match render_state.render(&mut event_bus) {
+                input_handler.process_input(&mut proxy);
+                render_state.update();
+                match render_state.render() {
                     Ok(_) => {}
                     // Reconfigure the surface if lost
                     Err(wgpu::SurfaceError::Lost) => render_state.resize(render_state.size),
@@ -94,7 +126,6 @@ impl MainLoop {
                     println!("Avg. fps: {:.2}", self.fps);
                 }
                 self.prev_frame_start = Instant::now();
-                event_bus.clear_all();
                 self.window.request_redraw();
             }
             _ => {}
