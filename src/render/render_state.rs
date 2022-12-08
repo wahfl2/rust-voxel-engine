@@ -92,7 +92,6 @@ impl RenderState {
             camera.get_bind_group_and_layout(&device);
 
         let mut face_lighting = FaceLighting::new(1.0, 0.25, 0.5, 0.75);
-        let face_lighting_uniform = FaceLightingUniform::from(&face_lighting);
         let (face_lighting_bind_group_layout, face_lighting_bind_group) =
             face_lighting.get_bind_group_and_layout(&device);
 

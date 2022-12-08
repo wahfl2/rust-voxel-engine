@@ -1,4 +1,3 @@
-use bytemuck::bytes_of;
 use nalgebra::Vector3;
 use wgpu::{Device, util::DeviceExt};
 

@@ -7,7 +7,7 @@ use winit::{
     window::{WindowBuilder, Window},
 };
 
-use crate::{render::{render_state::RenderState, camera::CameraController}, input::handler::{InputHandler, Movement}, event::events::Events, util::constants::DEG_TO_RAD};
+use crate::{render::{render_state::RenderState, camera::CameraController}, input::handler::{InputHandler, Movement}, event::events::Events};
 
 pub struct MainLoop {
     pub window: Window,
@@ -101,7 +101,7 @@ impl MainLoop {
 
                         camera_controller.position += sum * move_speed;
                     },
-                    Events::ButtonInput(input) => {
+                    Events::ButtonInput(_input) => {
                         
                     }
                 }
