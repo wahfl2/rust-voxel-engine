@@ -1,12 +1,7 @@
-
-
-use std::f32::consts::{FRAC_PI_2, FRAC_PI_4};
-
-use nalgebra::{Isometry3, Translation3, UnitQuaternion, Vector3, UnitDualQuaternion, Rotation3, UnitVector3};
 use wgpu::{include_wgsl, util::DeviceExt, Extent3d};
 use winit::{window::Window, event::WindowEvent};
 
-use super::{util::{vertex::*, cube_model::CubeModel, texture::TextureArray}, camera::{Camera, CameraUniform}};
+use super::{util::{vertex::*, cube_model::{CubeModel, self}, texture::TextureArray}, camera::{Camera, CameraUniform}, face_lighting::{FaceLightingUniform, FaceLighting}};
 
 pub struct RenderState {
     surface: wgpu::Surface,
@@ -15,8 +10,9 @@ pub struct RenderState {
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
     pub camera: Camera,
-    camera_uniform: CameraUniform,
     camera_bind_group: wgpu::BindGroup,
+    pub face_lighting: FaceLighting,
+    face_lighting_bind_group: wgpu::BindGroup,
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     // index_buffer: wgpu::Buffer,
@@ -60,10 +56,12 @@ impl RenderState {
         let shader = device.create_shader_module(include_wgsl!("../shader/shader.wgsl"));
 
         let model = CubeModel::default();
-        let mut model_verts = Vec::with_capacity(CubeModel::INDICES.len());
+        let mut model_verts = Vec::new();
 
-        for (index, tex_coord) in CubeModel::INDICES.iter().zip(CubeModel::DEFAULT_UV_MAP.iter()) {
-            model_verts.push(CubeModel::VERTICES[*index as usize].get_raw(tex_coord, 0))
+        for quad in cube_model::DEFAULT_CUBE_MODEL_QUADS.iter() {
+            for v in quad.get_vertices(0) {
+                model_verts.push(VertexRaw::from(v));
+            }
         }
 
         let vertex_buffer = device.create_buffer_init(
@@ -90,16 +88,21 @@ impl RenderState {
         let mut camera = Camera::default();
         camera.aspect = config.width as f32 / config.height as f32;
 
-        let camera_uniform = CameraUniform::from(&camera);
         let (camera_bind_group_layout, camera_bind_group) = 
             camera.get_bind_group_and_layout(&device);
+
+        let mut face_lighting = FaceLighting::new(1.0, 0.25, 0.5, 0.75);
+        let face_lighting_uniform = FaceLightingUniform::from(&face_lighting);
+        let (face_lighting_bind_group_layout, face_lighting_bind_group) =
+            face_lighting.get_bind_group_and_layout(&device);
 
         let render_pipeline_layout = device.create_pipeline_layout(
             &wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
                 bind_group_layouts: &[
                     &texture_bind_group_layout,
-                    &camera_bind_group_layout
+                    &camera_bind_group_layout,
+                    &face_lighting_bind_group_layout,
                 ],
                 push_constant_ranges: &[],
             }
@@ -149,13 +152,13 @@ impl RenderState {
             config,
             size,
             camera,
-            camera_uniform,
             camera_bind_group,
+            face_lighting,
+            face_lighting_bind_group,
             render_pipeline,
             vertex_buffer,
-            // index_buffer,
             bind_group: texture_bind_group,
-            num_indices: CubeModel::INDICES.len() as u32,
+            num_indices: model_verts.len() as u32,
         }
     }
 
@@ -169,42 +172,26 @@ impl RenderState {
         }
     }
 
-    pub fn input(&mut self, event: &WindowEvent) -> bool {
+    pub fn input(&mut self, _event: &WindowEvent) -> bool {
         false
     }
 
     pub fn update(&mut self) {
-        // let mut sum = Vector3::zeros();
-        // let look_vec = self.camera.transform.rotation * self.camera.up;
-        // let right_vec = look_vec.cross(&self.camera.up);
-
-        // for movement in bus.get_events_data::<Movement>() {
-        //     println!("recieved: {:?}", movement);
-        //     match movement {
-        //         Movement::Forward => {
-        //             sum += look_vec;
-        //         },
-        //         Movement::Backward => {
-        //             sum -= look_vec;
-        //         },
-        //         Movement::Left => {
-        //             sum -= right_vec;
-        //         },
-        //         Movement::Right => {
-        //             sum += right_vec;
-        //         },
-        //     }
-        // }
-
-        // self.camera.transform.append_translation_mut(&sum.into());
-
         self.queue.write_buffer(
             self.camera.buffer.as_ref().unwrap(), 
             0, 
-            bytemuck::cast_slice(&[CameraUniform::from(&self.camera)])
+            bytemuck::cast_slice(&[CameraUniform::from(&self.camera)]),
         );
 
-        // println!("{:?}", self.camera);
+        if self.face_lighting.changed {
+            self.queue.write_buffer(
+                self.face_lighting.buffer.as_ref().unwrap(),
+                0,
+                bytemuck::cast_slice(&[FaceLightingUniform::from(&self.face_lighting)]),
+            );
+
+            self.face_lighting.changed = false;
+        }
     }
 
     pub fn render(&mut self) -> Result<(), wgpu::SurfaceError> {
@@ -241,6 +228,7 @@ impl RenderState {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.bind_group, &[]);
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+            render_pass.set_bind_group(2, &self.face_lighting_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.draw(0..self.num_indices, 0..1);
         }

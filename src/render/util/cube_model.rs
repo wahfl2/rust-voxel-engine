@@ -1,8 +1,20 @@
 use std::{fs::File, io::Read};
 
 use image::DynamicImage;
+use nalgebra::Vector3;
+use once_cell::sync::Lazy;
 
-use super::vertex::Vertex;
+use super::shapes::Quad;
+
+/// Quads of a cube model with width 1.0 centered at the origin
+pub static DEFAULT_CUBE_MODEL_QUADS: Lazy<[Quad; 6]> = Lazy::new(|| {[
+    Quad::new_x_center(Vector3::new(0.5, 0.0, 0.0), 1.0, 1.0, true),
+    Quad::new_x_center(Vector3::new(-0.5, 0.0, 0.0), 1.0, 1.0, false),
+    Quad::new_y_center(Vector3::new(0.0, 0.5, 0.0), 1.0, 1.0, true),
+    Quad::new_y_center(Vector3::new(0.0, -0.5, 0.0), 1.0, 1.0, false),
+    Quad::new_z_center(Vector3::new(0.0, 0.0, 0.5), 1.0, 1.0, true),
+    Quad::new_z_center(Vector3::new(0.0, 0.0, -0.5), 1.0, 1.0, false),
+]});
 
 pub struct CubeModel {
     pub textures: Vec<DynamicImage>,
@@ -10,58 +22,6 @@ pub struct CubeModel {
 }
 
 impl CubeModel {
-    pub const VERTICES: &[Vertex] = &[
-        Vertex::new(0.0, 0.0, 0.0),
-        Vertex::new(1.0, 0.0, 0.0),
-        Vertex::new(1.0, 0.0, 1.0),
-        Vertex::new(0.0, 0.0, 1.0),
-        Vertex::new(0.0, 1.0, 0.0),
-        Vertex::new(1.0, 1.0, 0.0),
-        Vertex::new(1.0, 1.0, 1.0),
-        Vertex::new(0.0, 1.0, 1.0),
-    ];
-
-    pub const INDICES: &[u16] = &[
-        // Bottom 0, 1, 2, 3, 
-        2, 1, 0,
-        3, 2, 0,
-        // Top 4, 5, 6, 7,
-        4, 5, 6,
-        4, 6, 7,
-        // Side faces 0, 1, 5, 4, 
-        0, 1, 5,
-        0, 5, 4,
-        // 1, 2, 6, 5,
-        1, 2, 6,
-        1, 6, 5,
-        // 2, 3, 7, 6,
-        2, 3, 7,
-        2, 7, 6,
-        // 3, 0, 4, 7,
-        3, 0, 4,
-        3, 4, 7,
-    ];
-
-    pub const DEFAULT_UV_MAP: &[[f32; 2]] = &[
-        [1.0, 1.0], [1.0, 0.0], [0.0, 0.0],
-        [0.0, 1.0], [1.0, 1.0], [0.0, 0.0],
-
-        [0.0, 0.0], [1.0, 0.0], [1.0, 1.0],
-        [0.0, 0.0], [1.0, 1.0], [0.0, 1.0],
-        
-        [0.0, 0.0], [1.0, 0.0], [1.0, 1.0],
-        [0.0, 0.0], [1.0, 1.0], [0.0, 1.0],
-        
-        [0.0, 0.0], [1.0, 0.0], [1.0, 1.0],
-        [0.0, 0.0], [1.0, 1.0], [0.0, 1.0],
-        
-        [0.0, 0.0], [1.0, 0.0], [1.0, 1.0],
-        [0.0, 0.0], [1.0, 1.0], [0.0, 1.0],
-        
-        [0.0, 0.0], [1.0, 0.0], [1.0, 1.0],
-        [0.0, 0.0], [1.0, 1.0], [0.0, 1.0],
-    ];
-
     pub fn new(texture_path: &'static str) -> Self {
         let path = format!("assets/{}", texture_path);
         println!("{}", path);
