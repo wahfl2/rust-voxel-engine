@@ -1484,6 +1484,7 @@ dependencies = [
  "image",
  "log",
  "nalgebra",
+ "once_cell",
  "pollster",
  "rgb",
  "rustc-hash",
