@@ -161,6 +161,7 @@ impl CameraController {
             self.position.into(), 
             Rotation3::identity().into(),
         );
+
         ret.append_rotation_mut(&Rotation3::from_axis_angle(&Vector3::y_axis(), self.yaw).into());
         ret.append_rotation_mut(&Rotation3::from_axis_angle(&Vector3::x_axis(), self.pitch).into());
         ret

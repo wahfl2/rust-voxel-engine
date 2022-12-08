@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use nalgebra::{Vector3, Rotation3, Transform3, Isometry3, Point3};
+use nalgebra::{Vector3, Point3};
 use winit::{
     event::*,
     event_loop::{ControlFlow, EventLoop, EventLoopBuilder},
