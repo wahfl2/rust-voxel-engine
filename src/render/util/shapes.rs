@@ -44,10 +44,10 @@ impl Quad {
         });
 
         Self::new_unchecked([
-            Vector3::new(cx, cy - half_height, cz - half_width),
             Vector3::new(cx, cy + half_height, cz - half_width),
             Vector3::new(cx, cy + half_height, cz + half_width),
             Vector3::new(cx, cy - half_height, cz + half_width),
+            Vector3::new(cx, cy - half_height, cz - half_width),
         ])
     }
 
