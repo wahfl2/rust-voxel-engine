@@ -1,5 +1,6 @@
 use std::{fs::File, io::Read};
 
+use guillotiere::AtlasAllocator;
 use image::DynamicImage;
 use nalgebra::Vector3;
 use once_cell::sync::Lazy;
@@ -30,10 +31,33 @@ impl CubeModel {
             file.bytes().map(|b| { b.unwrap() })
             .collect::<Vec<_>>().as_slice()
         ).unwrap();
+        
+        let mut textures = Vec::new();
+        let face_textures;
+
+        let img_height = image_tex.height();
+        let img_width = image_tex.width();
+        let aspect_ratio = img_height as f32 / img_width as f32;
+        
+        if aspect_ratio == 3.0 {
+            let single_height = img_width;
+
+            // Top
+            textures.push(image_tex.crop_imm(0, 0, img_width, single_height));
+            // Sides
+            textures.push(image_tex.crop_imm(0, single_height, img_width, single_height));
+            // Bottom
+            textures.push(image_tex.crop_imm(0, 2 * single_height, img_width, single_height));
+
+            face_textures = [0, 1, 1, 1, 1, 2];
+        } else {
+            textures.push(image_tex);
+            face_textures = [0; 6];
+        }
 
         Self {
-            textures: vec![image_tex],
-            face_textures: [0; 6],
+            textures,
+            face_textures,
         }
     }
 }

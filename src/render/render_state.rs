@@ -1,7 +1,7 @@
 use wgpu::{include_wgsl, util::DeviceExt, Extent3d};
 use winit::{window::Window, event::WindowEvent};
 
-use super::{util::{vertex::*, cube_model::{CubeModel, self}, texture::TextureArray}, camera::{Camera, CameraUniform}, face_lighting::{FaceLightingUniform, FaceLighting}};
+use super::{util::{vertex::*, cube_model::{CubeModel, self}, texture::TextureArray, texture_atlas::TextureAtlas}, camera::{Camera, CameraUniform}, face_lighting::{FaceLightingUniform, FaceLighting}};
 
 pub struct RenderState {
     surface: wgpu::Surface,
@@ -9,13 +9,14 @@ pub struct RenderState {
     queue: wgpu::Queue,
     config: wgpu::SurfaceConfiguration,
     pub size: winit::dpi::PhysicalSize<u32>,
+    texture_atlas: TextureAtlas,
     pub camera: Camera,
     camera_bind_group: wgpu::BindGroup,
     pub face_lighting: FaceLighting,
     face_lighting_bind_group: wgpu::BindGroup,
     render_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
-    // index_buffer: wgpu::Buffer,
+    // instance_buffer: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
     pub num_indices: u32,
 }
@@ -59,7 +60,7 @@ impl RenderState {
         let mut model_verts = Vec::new();
 
         for quad in cube_model::DEFAULT_CUBE_MODEL_QUADS.iter() {
-            for v in quad.get_vertices(0) {
+            for v in quad.get_vertices() {
                 model_verts.push(VertexRaw::from(v));
             }
         }
@@ -72,18 +73,16 @@ impl RenderState {
             }
         );
 
-        let mut texture_array = TextureArray::new(&device, Extent3d {
-            width: 32,
-            height: 32,
-            depth_or_array_layers: 1,
-        });
+        let mut texture_atlas = TextureAtlas::new();
 
         for dyn_tex in model.textures {
-            texture_array.push_image(&queue, dyn_tex);
+            texture_atlas.add_texture(dyn_tex);
         }
 
         let (texture_bind_group_layout, texture_bind_group) = 
-            texture_array.get_bind_group_and_layout(&device);
+            texture_atlas.get_bind_group_and_layout(&device);
+
+        texture_atlas.write_buffer(&queue);
 
         let mut camera = Camera::default();
         camera.aspect = config.width as f32 / config.height as f32;
@@ -150,6 +149,7 @@ impl RenderState {
             queue,
             config,
             size,
+            texture_atlas,
             camera,
             camera_bind_group,
             face_lighting,
