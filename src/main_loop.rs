@@ -36,7 +36,7 @@ impl MainLoop {
         env_logger::init();
         self.prev_frame_start = Instant::now();
 
-        // let static_data = StaticBlockData::
+        let static_data = StaticBlockData::load();
 
         let mut render_state = RenderState::new(&self.window).await;
         let mut input_handler = InputHandler::default();

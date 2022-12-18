@@ -23,7 +23,7 @@ pub struct CubeModel {
 }
 
 impl CubeModel {
-    pub fn new(texture_path: &'static str) -> Self {
+    pub fn new(texture_path: &str) -> Self {
         let path = format!("assets/{}", texture_path);
         println!("{}", path);
         let file = File::open(path).unwrap();
