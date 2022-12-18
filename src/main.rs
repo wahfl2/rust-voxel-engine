@@ -4,6 +4,7 @@ pub mod render;
 pub mod event;
 pub mod input;
 pub mod util;
+pub mod game;
 
 fn main() {
     let main_loop = MainLoop::new();
