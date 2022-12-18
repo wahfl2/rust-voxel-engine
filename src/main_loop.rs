@@ -7,7 +7,7 @@ use winit::{
     window::{WindowBuilder, Window},
 };
 
-use crate::{render::{render_state::RenderState, camera::CameraController}, input::handler::{InputHandler, Movement}, event::events::Events};
+use crate::{render::{render_state::RenderState, camera::CameraController}, input::handler::{InputHandler, Movement}, event::events::Events, game::static_data::StaticBlockData};
 
 pub struct MainLoop {
     pub window: Window,
@@ -35,6 +35,8 @@ impl MainLoop {
     pub async fn run(mut self) {
         env_logger::init();
         self.prev_frame_start = Instant::now();
+
+        // let static_data = StaticBlockData::
 
         let mut render_state = RenderState::new(&self.window).await;
         let mut input_handler = InputHandler::default();

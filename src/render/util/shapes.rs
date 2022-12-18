@@ -91,13 +91,13 @@ impl Quad {
         &self.vertices
     }
 
-    pub fn get_vertices(&self, texture_id: u32) -> [Vertex; 6] {
+    pub fn get_vertices(&self) -> [Vertex; 6] {
         let normal = self.get_triangles().0.normal();
 
-        let a = Vertex::new(self.vertices[0], normal, Vector2::new(0.0, 0.0), texture_id);
-        let b = Vertex::new(self.vertices[1], normal, Vector2::new(1.0, 0.0), texture_id);
-        let c = Vertex::new(self.vertices[2], normal, Vector2::new(1.0, 1.0), texture_id);
-        let d = Vertex::new(self.vertices[3], normal, Vector2::new(0.0, 1.0), texture_id);
+        let a = Vertex::new(self.vertices[0], Vector2::new(0, 0), normal);
+        let b = Vertex::new(self.vertices[1], Vector2::new(1, 0), normal);
+        let c = Vertex::new(self.vertices[2], Vector2::new(1, 1), normal);
+        let d = Vertex::new(self.vertices[3], Vector2::new(0, 1), normal);
 
         [a, b, c, a, c, d]
     }
